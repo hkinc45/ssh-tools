@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+    tools {
+        maven 'maven-3.6.3' 
+    }
+    environment {
+        TAG = "${BUILD_NUMBER}"
+        NEXUS_URL = credentials('nexus-url')
+        NEXUS_USER = credentials('nexus-user')
+        NEXUS_PASSWORD = credentials('nexus-pass')
+        IMAGE_NAME = credentials('image-name')
+    }
+    stages {
+        stage ('Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                script {
+                    docker.build("${IMAGE_NAME}:${TAG}")
+                }
+            }
+        }
+	    stage('Pushing Docker Image to Dockerhub') {
+            steps {
+                script {
+                    docker.withRegistry('${NEXUS_URL}', 'docker_credential') {
+                        docker.image("${IMAGE_NAME}:${TAG}").push()
+                        docker.image("${IMAGE_NAME}:latest").push()
+                    }
+                }
+            }
+        }
+        stage('Deploy'){
+            steps {
+                ## to be added
+            }
+        }
+    }
+}
